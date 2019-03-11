@@ -23,6 +23,13 @@ import org.bukkit.scoreboard.Scoreboard;
 import javax.security.auth.login.LoginException;
 import java.util.List;
 
+/**
+ * CraftBukkit/Spigot plugin which links in-game chat and provides various commands.
+ *
+ * @author MylesMor
+ * @version 1.21
+ *
+ */
 public class MCDiscord extends JavaPlugin implements Listener {
 
     JDA jda;
