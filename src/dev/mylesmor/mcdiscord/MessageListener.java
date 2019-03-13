@@ -1,7 +1,9 @@
 package dev.mylesmor.mcdiscord;
 
 import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.entities.*;
+import net.dv8tion.jda.core.entities.Message;
+import net.dv8tion.jda.core.entities.MessageChannel;
+import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 
@@ -27,29 +29,54 @@ public class MessageListener extends ListenerAdapter {
         //This returns a human readable version of the Message
         String msg = message.getContentDisplay();
 
+        String[] input = msg.split(" ");
+        String command;
+        try {
+            command = input[0].toLowerCase().substring(MCDiscord.prefix.length());
+        } catch (StringIndexOutOfBoundsException e) {
+            command = msg.toLowerCase().substring(MCDiscord.prefix.length());
+        }
 
 
         // If message starts with the prefix defined in config.yml (this variable is set in setupConfig() in MCDiscord.java
         if (msg.startsWith(MCDiscord.prefix)) {
 
-            // If excluding the first letter, the string equals list.
-            if (msg.substring(1).equalsIgnoreCase("list")) {
+            if (command.equals("list")) {
                 MCDiscord.displayOnlinePlayers(channel);
                 return;
             }
 
-            // If excluding the first letter, the string equals deaths.
-            try {
-                if (msg.split(" ")[0].substring(1).equalsIgnoreCase("deaths")) {
-                    MCDiscord.getDeaths(channel, msg.split(" ")[1]);
-                    return;
+            if (command.equals("deaths")) {
+                try {
+                    MCDiscord.sendDeaths(channel, input[1]);
+                } catch (Exception e) {
+                    channel.sendMessage("Incorrect usage. Example: !deaths MylesMor").queue();
                 }
-            } catch (Exception e) {
-                channel.sendMessage("Incorrect usage. Example: !deaths MylesMor").queue();
                 return;
             }
 
-            channel.sendMessage("Unknown command.").queue();
+            if (command.equals("stats")) {
+                try {
+                    MCDiscord.getStats(channel, input[1]);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    channel.sendMessage("Incorrect usage. Example: !stats MylesMor").queue();
+                }
+                return;
+            }
+
+
+            if (command.equals("help")) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("**MC SURVIVAL BOT COMMANDS**\n```")
+                        .append("\n!list - Shows all online players.")
+                        .append("\n!deaths <player> - Shows how many deaths a player has.")
+                        .append("\n!stats <player> - Displays some fun stats about a player. **NOTE:** The player must be online.\n```");
+                channel.sendMessage(sb.toString()).queue();
+                return;
+            }
+
+            channel.sendMessage("Unknown command. Please type !help for available commands.").queue();
             return;
         }
 
