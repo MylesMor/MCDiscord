@@ -131,7 +131,7 @@ public class MCDiscord extends JavaPlugin implements Listener {
      */
     private void storeStats(Player player) {
 
-        int deaths = getDeaths(player);
+        int deaths = player.getStatistic(Statistic.DEATHS);
         int animalsBred = player.getStatistic(Statistic.ANIMALS_BRED);
         int playersKilled = player.getStatistic(Statistic.PLAYER_KILLS);
         int blocksMined = player.getStatistic(Statistic.MINE_BLOCK, Material.STONE);
@@ -179,40 +179,6 @@ public class MCDiscord extends JavaPlugin implements Listener {
     }
 
     /**
-     * Displays the number of deaths a player has in Discord. Called by {@link MessageListener}.
-     *
-     * @param c          The message channel that the command was sent in.
-     * @param playerName The name of the player to check deaths for.
-     */
-    public static void sendDeaths(MessageChannel c, String playerName) {
-
-        OfflinePlayer player = Bukkit.getOfflinePlayer(playerName);
-        int deaths = getDeaths(player);
-        if (deaths == -1) {
-            c.sendMessage("Player **" + playerName + "** hasn't played yet!").queue();
-            return;
-        }
-        c.sendMessage("Player **" + player.getName() + "** has " + deaths + " deaths!").queue();
-
-    }
-
-    /**
-     * Returns deaths as an int, or -1 if the player hasn't played.
-     * @param player The player to check deaths for.
-     * @return Number of deaths or -1 if not played.
-     */
-    private static int getDeaths(OfflinePlayer player) {
-        Scoreboard board = Bukkit.getServer().getScoreboardManager().getMainScoreboard();
-        Objective objective = board.getObjective("Deaths");
-        Score score = objective.getScore(player.getName());
-        if (!player.hasPlayedBefore() || !score.isScoreSet()) {
-            return -1;
-        } else {
-            return score.getScore();
-        }
-    }
-
-    /**
      * Retrieves stats about a player.
      * @param c The message channel that the command was sent in.
      * @param playerName The name of the player to check stats for.
@@ -234,7 +200,7 @@ public class MCDiscord extends JavaPlugin implements Listener {
 
         HashMap<String, Integer> statsMap = new HashMap<>();
 
-        statsMap.put("deaths", getDeaths(offlinePlayer));
+        statsMap.put("deaths", player.getStatistic(Statistic.DEATHS));
         statsMap.put("animals_bred", player.getStatistic(Statistic.ANIMALS_BRED));
         statsMap.put("players_killed", player.getStatistic(Statistic.PLAYER_KILLS));
         statsMap.put("stone_blocks_mined", player.getStatistic(Statistic.MINE_BLOCK, Material.STONE));

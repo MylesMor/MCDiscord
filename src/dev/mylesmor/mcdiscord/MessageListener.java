@@ -46,14 +46,6 @@ public class MessageListener extends ListenerAdapter {
                 return;
             }
 
-            if (command.equals("deaths")) {
-                try {
-                    MCDiscord.sendDeaths(channel, input[1]);
-                } catch (Exception e) {
-                    channel.sendMessage("Incorrect usage. Example: !deaths MylesMor").queue();
-                }
-                return;
-            }
 
             if (command.equals("stats")) {
                 try {
@@ -70,8 +62,7 @@ public class MessageListener extends ListenerAdapter {
                 StringBuilder sb = new StringBuilder();
                 sb.append("**MC SURVIVAL BOT COMMANDS**\n```")
                         .append("\n!list - Shows all online players.")
-                        .append("\n!deaths <player> - Shows how many deaths a player has.")
-                        .append("\n!stats <player> - Displays some fun stats about a player. **NOTE:** The player must be online.\n```");
+                        .append("\n!stats <player> - Displays some fun stats about a player.\n```");
                 channel.sendMessage(sb.toString()).queue();
                 return;
             }
