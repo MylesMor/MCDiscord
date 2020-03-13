@@ -41,6 +41,9 @@ public class MCDiscord extends JavaPlugin implements Listener {
     private JDA jda;
     private List<TextChannel> channels;
     private static FileConfiguration stats;
+	private static String botName;
+	private static boolean enableJoinLeaveMessages;
+	private static String botToken;
 
 
     @Override
@@ -53,7 +56,7 @@ public class MCDiscord extends JavaPlugin implements Listener {
 
         // Initialises the connection to the Bot.
         try {
-            jda = new JDABuilder(AccountType.BOT).setToken("BOT_TOKEN")
+            jda = new JDABuilder(AccountType.BOT).setToken(botToken)
                     .addEventListener(new MessageListener())  // An instance of a class that will handle events.
                     .build();
             jda.awaitReady(); // Blocking guarantees that JDA will be completely loaded.
@@ -106,6 +109,20 @@ public class MCDiscord extends JavaPlugin implements Listener {
         if (!this.getConfig().isConfigurationSection("chat-channel")) {
             this.getConfig().set("chat-channel", "server-chat");
         }
+		
+	    chatChannel = this.getConfig().get("chat-channel").toString();
+		
+		if (!this.getConfig().isConfigurationSection("bot-name")) {
+            this.getConfig().set("bot-name", "MC Survival Bot");
+        }
+		
+		botName = this.getConfig().get("bot-name").toString();
+		
+		if (!this.getConfig().isConfigurationSection("enable-join-leave-messages")) {
+            this.getConfig().set("enable-join-leave-messages", true);
+        }
+		
+		enableJoinLeaveMessages = this.getConfig().get("enable-join-leave-messages").toString();
 
         chatChannel = this.getConfig().get("chat-channel").toString();
 
@@ -336,7 +353,7 @@ public class MCDiscord extends JavaPlugin implements Listener {
         if (jda != null) {
             setStatus();
             for (TextChannel tc : channels) {
-                if (tc.getName().equalsIgnoreCase("server-chat")) {
+                if (tc.getName().equalsIgnoreCase(chatChannel)) {
                     tc.sendMessage("**" + name + "** has left the server!").queue();
                 }
             }
@@ -354,7 +371,7 @@ public class MCDiscord extends JavaPlugin implements Listener {
         if (jda != null) {
             setStatus();
             for (TextChannel tc : channels) {
-                if (tc.getName().equalsIgnoreCase("server-chat")) {
+                if (tc.getName().equalsIgnoreCase(chatChannel)) {
                     tc.sendMessage("**" + name + "** has joined the server!").queue();
                 }
             }
