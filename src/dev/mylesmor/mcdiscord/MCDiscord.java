@@ -1,17 +1,12 @@
 package dev.mylesmor.mcdiscord;
 
-import net.dv8tion.jda.core.AccountType;
-import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.JDABuilder;
-import net.dv8tion.jda.core.entities.Game;
-import net.dv8tion.jda.core.entities.MessageChannel;
-import net.dv8tion.jda.core.entities.TextChannel;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.TextChannel;
+
 import org.bukkit.*;
-import org.bukkit.configuration.Configuration;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.craftbukkit.libs.it.unimi.dsi.fastutil.Hash;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -19,13 +14,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Score;
-import org.bukkit.scoreboard.Scoreboard;
-import org.yaml.snakeyaml.error.YAMLException;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 /**
@@ -37,13 +26,13 @@ import java.util.*;
 public class MCDiscord extends JavaPlugin implements Listener {
 
     public static String prefix;
-    public static String chatChannel;
+    public static String botName;
+    public static String chatPrefix = null;
+    public static TextChannel channel = null;
+
     private JDA jda;
-    private List<TextChannel> channels;
-    private static FileConfiguration stats;
-	private static String botName;
-	private static boolean enableJoinLeaveMessages;
-	private static String botToken;
+    private static String chatChannel;
+    private String token;
 
 
     @Override
@@ -55,27 +44,45 @@ public class MCDiscord extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
 
         // Initialises the connection to the Bot.
-        try {
-            jda = new JDABuilder(AccountType.BOT).setToken(botToken)
-                    .addEventListener(new MessageListener())  // An instance of a class that will handle events.
-                    .build();
-            jda.awaitReady(); // Blocking guarantees that JDA will be completely loaded.
-            System.out.println("Finished Building JDA!");
-            channels = jda.getTextChannels();
-
-        } catch (Exception e) {
-            Bukkit.getLogger().info("Failed to initialise JDA.");
+        if (token.equalsIgnoreCase("")) {
+            Bukkit.getLogger().warning("Failed to initialise JDA. Please ensure your bot token is in the configuration file: MCDiscord/config.yml");
             jda = null;
+            this.setEnabled(false);
+        } else {
+            try {
+                jda = JDABuilder.createDefault(token).build();
+                jda.addEventListener(new MessageListener());
+                jda.awaitReady(); // Blocking guarantees that JDA will be completely loaded.
+                System.out.println("Finished Building JDA!");
+                List<TextChannel> channels = jda.getTextChannels();
+                for (TextChannel ch : channels) {
+                    if (ch.getName().equalsIgnoreCase(chatChannel)) {
+                        channel = ch;
+                    }
+                }
+                if (channel == null) {
+                    throw new Exception();
+                }
+                botName = jda.getSelfUser().getName();
+
+            } catch (Exception e) {
+                Bukkit.getLogger().warning("Failed to initialise JDA. Please ensure the channel name specified in MCDiscord/config.yml is valid!");
+                jda = null;
+                this.setEnabled(false);
+            }
         }
 
-        setStatus();
+        setStatus(false);
     }
 
     @Override
     public void onDisable() {
-
-        // Shuts down the connection to the bot.
-        if (jda != null) jda.shutdownNow();
+        try {
+            // Shuts down the connection to the bot.
+            if (jda != null) jda.shutdown();
+        } catch (Exception  e) {
+            Bukkit.getLogger().warning("Failed to shutdown JDA gracefully!");
+        }
     }
 
     @EventHandler
@@ -86,7 +93,6 @@ public class MCDiscord extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent e) {
         sendLeaveToDiscord(e.getPlayer().getName());
-        storeStats(e.getPlayer());
     }
 
     @EventHandler
@@ -100,86 +106,38 @@ public class MCDiscord extends JavaPlugin implements Listener {
     private void setupConfig() {
         this.saveDefaultConfig();
 
-        if (!this.getConfig().isConfigurationSection("command-prefix")) {
+        if (!this.getConfig().contains("command-prefix")) {
             this.getConfig().set("command-prefix", "!");
         }
 
         prefix = this.getConfig().getString("command-prefix");
 
-        if (!this.getConfig().isConfigurationSection("chat-channel")) {
-            this.getConfig().set("chat-channel", "server-chat");
+        if (!this.getConfig().contains("token")) {
+            this.getConfig().set("token", "");
         }
-		
-	    chatChannel = this.getConfig().get("chat-channel").toString();
-		
-		if (!this.getConfig().isConfigurationSection("bot-name")) {
-            this.getConfig().set("bot-name", "MC Survival Bot");
+
+        token = this.getConfig().getString("token");
+
+        if (!this.getConfig().contains("chat-channel")) {
+            this.getConfig().set("chat-channel", "general");
         }
-		
-		botName = this.getConfig().get("bot-name").toString();
-		
-		if (!this.getConfig().isConfigurationSection("enable-join-leave-messages")) {
-            this.getConfig().set("enable-join-leave-messages", true);
-        }
-		
-		enableJoinLeaveMessages = this.getConfig().get("enable-join-leave-messages").toString();
 
         chatChannel = this.getConfig().get("chat-channel").toString();
 
+        if (!this.getConfig().contains("chat-prefix")) {
+            this.getConfig().set("chat-prefix", "&9[DISCORD]");
+        }
+
+        String chat = this.getConfig().getString("chat-prefix");
+        if (chat != null) {
+            chatPrefix = ChatColor.translateAlternateColorCodes('&', chat);
+        } else {
+            chatPrefix = ChatColor.BLUE + "[DISCORD]";
+        }
+
         this.saveConfig();
-
-        File statsFile = new File (this.getDataFolder() + File.separator + "stats.yml");
-        if (!statsFile.exists()) {
-            try {
-                statsFile.createNewFile();
-            } catch (IOException e) {
-                System.out.println("Failed to create stats.yml");
-            }
-        }
-
-        stats = YamlConfiguration.loadConfiguration(statsFile);
-
     }
 
-
-    /**
-     * Stores stats for a player in stats.yml.
-     * @param player The player to store stats for.
-     */
-    private void storeStats(Player player) {
-
-        int deaths = player.getStatistic(Statistic.DEATHS);
-        int animalsBred = player.getStatistic(Statistic.ANIMALS_BRED);
-        int playersKilled = player.getStatistic(Statistic.PLAYER_KILLS);
-        int blocksMined = player.getStatistic(Statistic.MINE_BLOCK, Material.STONE);
-        int fishCaught = player.getStatistic(Statistic.FISH_CAUGHT);
-        int timesJumped = player.getStatistic(Statistic.JUMP);
-        int tradedVillager = player.getStatistic(Statistic.TRADED_WITH_VILLAGER);
-        int mobsKilled = player.getStatistic(Statistic.MOB_KILLS);
-        int cakeSlicesEaten = player.getStatistic(Statistic.CAKE_SLICES_EATEN);
-
-        if (!stats.isConfigurationSection(player.getUniqueId().toString())) {
-            stats.createSection(player.getUniqueId().toString());
-        }
-
-        ConfigurationSection cs = stats.getConfigurationSection(player.getUniqueId().toString());
-        cs.set("deaths", deaths);
-        cs.set("animals_bred", animalsBred);
-        cs.set("players_killed", playersKilled);
-        cs.set("stone_blocks_mined", blocksMined);
-        cs.set("fish_caught", fishCaught);
-        cs.set("times_jumped", timesJumped);
-        cs.set("villager_trades", tradedVillager);
-        cs.set("mobs_killed", mobsKilled);
-        cs.set("cake_slices_eaten", cakeSlicesEaten);
-
-        try {
-            stats.save(new File(getDataFolder() + File.separator + "stats.yml"));
-        } catch (IOException e) {
-            System.out.println("Failed to save " + player.getName() + "'s data to stats.yml");
-        }
-
-    }
 
     /**
      * Broadcasts Discord chat to the server. Called in {@link MessageListener}.
@@ -188,97 +146,10 @@ public class MCDiscord extends JavaPlugin implements Listener {
      * @param name Username who sent it.
      */
     public static void sendToServer(String msg, String name) {
-
-        Bukkit.getServer().broadcastMessage(ChatColor.RED + "[DISCORD] " + ChatColor.WHITE + name +
-                ChatColor.WHITE + ": " + msg);
-
-
+        String messageToBroadcast = String.format(chatPrefix, name, msg);
+        Bukkit.getServer().broadcastMessage(messageToBroadcast);
     }
 
-    /**
-     * Retrieves stats about a player.
-     * @param c The message channel that the command was sent in.
-     * @param playerName The name of the player to check stats for.
-     */
-    public static void getStats(MessageChannel c, String playerName) {
-        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
-
-        if (!offlinePlayer.hasPlayedBefore()) {
-            c.sendMessage("Player **" + playerName + "** hasn't played yet!").queue();
-            return;
-        }
-
-        Player player = offlinePlayer.getPlayer();
-
-        if (player == null) {
-            getOfflineStats(c, offlinePlayer);
-            return;
-        }
-
-        HashMap<String, Integer> statsMap = new HashMap<>();
-
-        statsMap.put("deaths", player.getStatistic(Statistic.DEATHS));
-        statsMap.put("animals_bred", player.getStatistic(Statistic.ANIMALS_BRED));
-        statsMap.put("players_killed", player.getStatistic(Statistic.PLAYER_KILLS));
-        statsMap.put("stone_blocks_mined", player.getStatistic(Statistic.MINE_BLOCK, Material.STONE));
-        statsMap.put("fish_caught", player.getStatistic(Statistic.FISH_CAUGHT));
-        statsMap.put("times_jumped", player.getStatistic(Statistic.JUMP));
-        statsMap.put("villager_trades", player.getStatistic(Statistic.TRADED_WITH_VILLAGER));
-        statsMap.put("mobs_killed", player.getStatistic(Statistic.MOB_KILLS));
-        statsMap.put("cake_slices_eaten", player.getStatistic(Statistic.CAKE_SLICES_EATEN));
-
-        displayStats(c, offlinePlayer, statsMap);
-    }
-
-    /**
-     * Displays the stats on discord.
-     * @param c The channel to send the message to.
-     * @param offlinePlayer The player to check stats for.
-     * @param statsMap The map of stats.
-     */
-    private static void displayStats(MessageChannel c, OfflinePlayer offlinePlayer, HashMap<String, Integer> statsMap) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Player stats: **").append(offlinePlayer.getName()).append("**\n```")
-                .append("\nDeaths: ").append(statsMap.get("deaths"))
-                .append("\nPlayers killed: ").append(statsMap.get("players_killed"))
-                .append("\nMobs killed: ").append(statsMap.get("mobs_killed"))
-                .append("\nAnimals bred: ").append(statsMap.get("animals_bred"))
-                .append("\nTimes jumped: ").append(statsMap.get("times_jumped"))
-                .append("\nStone blocks mined: ").append(statsMap.get("stone_blocks_mined"))
-                .append("\nVillager trades: ").append(statsMap.get("villager_trades"))
-                .append("\nFish caught: ").append(statsMap.get("fish_caught"))
-                .append("\nCake slices eaten: ").append(statsMap.get("cake_slices_eaten"))
-                .append("```");
-
-        c.sendMessage(sb.toString()).queue();
-    }
-
-
-    /**
-     * Retrieves offline stats about a player.
-     * @param c The channel to send messages to.
-     * @param player The player to check stats for.
-     */
-    private static void getOfflineStats(MessageChannel c, OfflinePlayer player) {
-        if (!stats.isConfigurationSection(player.getUniqueId().toString())) {
-            c.sendMessage("Offline stats not available for player **" + player.getName() + ".**").queue();
-            return;
-        }
-
-        ConfigurationSection cs = stats.getConfigurationSection(player.getUniqueId().toString());
-        HashMap<String, Integer> statsMap = new HashMap<>();
-        statsMap.put("deaths", (int) cs.get("deaths"));
-        statsMap.put("animals_bred", (int) cs.get("animals_bred"));
-        statsMap.put("players_killed", (int) cs.get("players_killed"));
-        statsMap.put("stone_blocks_mined", (int) cs.get("stone_blocks_mined"));
-        statsMap.put("fish_caught", (int) cs.get("fish_caught"));
-        statsMap.put("times_jumped", (int) cs.get("times_jumped"));
-        statsMap.put("villager_trades", (int) cs.get("villager_trades"));
-        statsMap.put("mobs_killed", (int) cs.get("mobs_killed"));
-        statsMap.put("cake_slices_eaten", (int) cs.get("cake_slices_eaten"));
-
-        displayStats(c, player, statsMap);
-    }
 
     /**
      * Displays the number of online players when !list is sent. Called by {@link MessageListener}.
@@ -322,11 +193,7 @@ public class MCDiscord extends JavaPlugin implements Listener {
     private void sendChatToDiscord(String name, String msg) {
 
         if (jda != null) {
-            for (TextChannel tc : channels) {
-                if (tc.getName().equalsIgnoreCase(chatChannel)) {
-                    tc.sendMessage("**" + name + ": **" + msg).queue();
-                }
-            }
+            channel.sendMessage("**" + name + ": **" + msg).queue();
         }
     }
 
@@ -334,11 +201,12 @@ public class MCDiscord extends JavaPlugin implements Listener {
     /**
      * Sets the status of the bot to the number of players online.
      */
-    private void setStatus() {
+    private void setStatus(boolean quit) {
         if (jda != null) {
             int count = Bukkit.getOnlinePlayers().size();
+            if (quit) count -=1;
             String status = count + " player" + (count == 1 ? "" : "s") + " online.";
-            jda.getPresence().setGame(Game.of(Game.GameType.WATCHING, status));
+            jda.getPresence().setActivity(Activity.watching(status));
         }
     }
 
@@ -351,12 +219,8 @@ public class MCDiscord extends JavaPlugin implements Listener {
     public void sendLeaveToDiscord(String name) {
 
         if (jda != null) {
-            setStatus();
-            for (TextChannel tc : channels) {
-                if (tc.getName().equalsIgnoreCase(chatChannel)) {
-                    tc.sendMessage("**" + name + "** has left the server!").queue();
-                }
-            }
+            setStatus(true);
+            channel.sendMessage("**" + name + "** has left the server!").queue();
         }
     }
 
@@ -369,15 +233,10 @@ public class MCDiscord extends JavaPlugin implements Listener {
     public void sendJoinToDiscord(String name) {
 
         if (jda != null) {
-            setStatus();
-            for (TextChannel tc : channels) {
-                if (tc.getName().equalsIgnoreCase(chatChannel)) {
-                    tc.sendMessage("**" + name + "** has joined the server!").queue();
-                }
-            }
+            setStatus(false);
+            channel.sendMessage("**" + name + "** has joined the server!").queue();
         }
     }
-
 }
 
 

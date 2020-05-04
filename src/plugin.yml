@@ -1,4 +1,5 @@
 name: MCDiscord
 version: 1.0
+api-version: 1.15
 author: MylesMor
 main: dev.mylesmor.mcdiscord.MCDiscord

@@ -1,11 +1,11 @@
 package dev.mylesmor.mcdiscord;
 
-import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageChannel;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class MessageListener extends ListenerAdapter {
 
@@ -30,11 +30,11 @@ public class MessageListener extends ListenerAdapter {
         String msg = message.getContentDisplay();
 
         String[] input = msg.split(" ");
-        String command;
+        String command = msg;
         try {
             command = input[0].toLowerCase().substring(MCDiscord.prefix.length());
         } catch (StringIndexOutOfBoundsException e) {
-            command = msg.toLowerCase().substring(MCDiscord.prefix.length());
+
         }
 
 
@@ -47,22 +47,10 @@ public class MessageListener extends ListenerAdapter {
             }
 
 
-            if (command.equals("stats")) {
-                try {
-                    MCDiscord.getStats(channel, input[1]);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    channel.sendMessage("Incorrect usage. Example: !stats MylesMor").queue();
-                }
-                return;
-            }
-
-
             if (command.equals("help")) {
                 StringBuilder sb = new StringBuilder();
-                sb.append("**MC SURVIVAL BOT COMMANDS**\n```")
-                        .append("\n!list - Shows all online players.")
-                        .append("\n!stats <player> - Displays some fun stats about a player.\n```");
+                sb.append("**MCDISCORD COMMANDS**\n```")
+                        .append("\n!list - Shows all online players.");
                 channel.sendMessage(sb.toString()).queue();
                 return;
             }
@@ -72,8 +60,8 @@ public class MessageListener extends ListenerAdapter {
         }
 
         // Send to server.
-        if (channel.getName().equalsIgnoreCase(MCDiscord.chatChannel) &&
-                !author.getName().equalsIgnoreCase("Survival MC Bot")) {
+        if (channel.equals(MCDiscord.channel) &&
+                !author.getName().equalsIgnoreCase(MCDiscord.botName)) {
             MCDiscord.sendToServer(msg, author.getName());
         }
 

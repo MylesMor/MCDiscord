@@ -1,2 +1,11 @@
+# Colour codes represented by & (e.g., &c is light red). The first %s represents the discord username, and the second the the chat, so please ensure both of these characters appear.
+chat-prefix: '&9[DISCORD] &f%s: &f%s'
+
+# Bot token
+token: ""
+
+# Command prefix for discord (e.g., !list).
 command-prefix: '!'
-chat-channel: server-chat
+
+# The channel for the bot to send and recieve messages from/to.
+chat-channel: general
